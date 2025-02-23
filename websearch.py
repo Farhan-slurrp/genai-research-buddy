@@ -2,7 +2,7 @@ from langchain_community.tools import DuckDuckGoSearchResults
 
 def search_web(query: str) -> str:
   engine = DuckDuckGoSearchResults()
-  return engine.run(f"site:scholar.google.com OR site:arxiv.org OR site:ieeexplore.ieee.org OR site:researchgate.net {query}")
+  return engine.run(f"site:scholar.google.com OR site:arxiv.org OR site:ieeexplore.ieee.org OR site:researchgate.net OR site:sciencedirect.com {query}")
 
 tool_search_web = {
   'type':'function', 
