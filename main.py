@@ -1,8 +1,12 @@
+from collections import deque
+import json
 import ollama
 import websearch
 import webscrapper
+import formatter
 
 llm = "qwen2.5"
+list_tools = [websearch.tool_search_web, webscrapper.tool_scrape_webpage]
 
 
 prompt = '''
@@ -30,7 +34,7 @@ while True:
    
     agent_res = ollama.chat(
         model=llm,
-        tools=[websearch.tool_search_web, webscrapper.tool_scrape_webpage],
+        tools=list_tools,
         messages=messages)
     
     dic_tools = {'search_web':websearch.search_web, 'scrape_webpage':webscrapper.scrape_webpage}
@@ -41,21 +45,29 @@ while True:
         messages.append( {"role":"assistant", "content":res} )
 
     if "tool_calls" in agent_res["message"]:
-        for tool in agent_res["message"]["tool_calls"]:
+        tools = deque(agent_res["message"]["tool_calls"])
+        max_tools_calls = len(agent_res["message"]["tool_calls"]) + 3
+        while tools and max_tools_calls > 0:
+            tool = tools.popleft()
             t_name, t_inputs = tool["function"]["name"], tool["function"]["arguments"]
             if f := dic_tools.get(t_name):
                 print('🔧 >', f"\x1b[1;31m{t_name} -> Inputs: {t_inputs}\x1b[0m")
                 messages.append( {"role":"user", "content":"use tool '"+t_name+"' with inputs: "+str(t_inputs)} )
                 t_output = f(**tool["function"]["arguments"])
+                max_tools_calls -= 1
                 p = f'''
                     Summarize this to answer user question, the answer should be usable for research purpose: {t_output}.
+                    Be research-oriented. If you cite something, use APA citation in your answer, link to it, and the page number if applicable.
 
                     When summarizing, make sure to:
                         1. Consider the descriptions of the tools available and the initial system prompt.
-                        2. Be research-oriented. If you cite something, use APA citation in your answer and the page number if applicable.
+                        2. If you return tool_calls, available tools are {list_tools}, but tool_calls can be empty
                     '''
-                res = ollama.generate(model=llm, prompt=q+". "+p)["response"]
-                print("🤖 > ", f"\x1b[1;30m{res}\x1b[0m")
-                messages.append({"role":"assistant", "content":res})
+                res = ollama.generate(model=llm, format=formatter.generate_format, prompt=q+". "+p)["response"]
+                res_json = json.loads(res)
+                print("🤖 > ", f"\x1b[1;30m{res_json['content']}\x1b[0m")
+                messages.append({"role":"assistant", "content":res_json['content']})
+                if res_json['tool_calls'] != None:
+                    tools.extend(res_json['tool_calls'])
             else:
                 print('🤬 > ', f"\x1b[1;31m{t_name} -> NotFound\x1b[0m")
