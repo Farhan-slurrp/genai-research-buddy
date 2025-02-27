@@ -12,7 +12,7 @@ tool_scrape_webpage = {
   'type':'function', 
   'function':{
     'name': 'scrape_webpage',
-    'description': 'Scrapes the content of a webpage',
+    'description': 'Scrapes the content of a given webpage URL',
     'parameters': {
             'type': 'object',
             'properties': {
